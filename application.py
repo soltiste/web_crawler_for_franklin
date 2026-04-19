@@ -131,13 +131,13 @@ class TaskScheduler:
         if existing:
             if is_user_task and existing.priority == 2:
                 self.task_repo.update_task_priority(existing.id, 1)
-                return f"✅ Приоритет задачи {gene}:{mode} повышен до HIGH"
+                return f"Приоритет задачи {gene}:{mode} повышен до HIGH"
             else:
-                return f"⚠️  Задача {gene}:{mode} уже в работе (статус: {existing.status})"
+                return f"Задача {gene}:{mode} уже в работе (статус: {existing.status})"
         
         task = Task(gene=gene, mode=mode, priority=priority)
         task_id = self.task_repo.add_task(task)
-        return f"✅ Задача добавлена в очередь (ID: {task_id})"
+        return f"Задача добавлена в очередь (ID: {task_id})"
     
     def run_queue(self, api_client: FranklinAPIClient):
         """
