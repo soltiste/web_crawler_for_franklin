@@ -64,8 +64,6 @@ def main():
     
     subparsers = parser.add_subparsers(dest='command', help='Режим работы', required=False)
     
-    # ========== 2. РЕГИСТРИРУЕМ ВСЕ КОМАНДЫ ==========
-    # Пользовательские (кладут задачи в очередь)
     p_fill = subparsers.add_parser('fill', help='Добавить задачу на заполнение БД')
     p_fill.add_argument('genes', nargs='+', help='Гены: BRCA1 TP53')
     
