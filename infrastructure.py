@@ -1,11 +1,13 @@
 """Infrastructure"""
 import logging
 from typing import Optional, List
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, func
 from sqlalchemy.orm import sessionmaker, declarative_base
 from datetime import datetime
+import subprocess
+import os
 
-from domain import Variant
+from domain import Task, Variant
 
 logger = logging.getLogger(__name__)
 Base = declarative_base()
@@ -33,9 +35,29 @@ class VariantDB(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
+class TaskDB(Base):
+    """Модель задач в БД"""
+    __tablename__ = 'tasks'
+    
+    id = Column(Integer, primary_key=True)
+    gene = Column(String(50), nullable=False)
+    mode = Column(String(20), nullable=False)
+    priority = Column(Integer, default=2)  # 1=high, 2=low
+    status = Column(String(20), default="pending")
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class SchedulerStateDB(Base):
+    """Состояние планировщика"""
+    __tablename__ = 'scheduler_state'
+    
+    id = Column(Integer, primary_key=True)
+    last_run = Column(DateTime)
+    next_run = Column(DateTime)
+
 
 class VariantRepository:
-    """работа с БД"""
+    """работа с вариантами в БД"""
     
     def __init__(self, db_path: str = "franklin.db"):
         self.engine = create_engine(f'sqlite:///{db_path}')
@@ -127,6 +149,165 @@ class VariantRepository:
                 VariantDB.alt == alt
             ).first()
             return self._to_domain(variant) if variant else None
+        finally:
+            session.close()
+
+    def get_all_genes(self) -> List[str]:
+        """Получить список уникальных генов из БД"""
+        session = self.SessionLocal()
+        try:
+            genes = session.query(VariantDB.gene).filter(
+                VariantDB.gene.isnot(None),
+                VariantDB.gene != ''
+            ).distinct().all()
+            return [g[0] for g in genes if g[0]]
+        finally:
+            session.close()
+
+    def validate_c_dot_duplicates(self) -> List[str]:
+        """Дубликаты c.dot (разные варианты с одинаковым c.dot - частая ошибка)"""
+        session = self.SessionLocal()
+        try:
+            duplicates = session.query(VariantDB.c_dot).filter(
+                VariantDB.c_dot.isnot(None),
+                VariantDB.c_dot != ''
+            ).group_by(VariantDB.c_dot).having(func.count(VariantDB.id) > 1).all()
+            
+            return [dup[0] for dup in duplicates]
+        finally:
+            session.close()
+    
+    def create_backup(self, backup_dir: str = "backups") -> str:
+        """SQL dump для sqlite"""
+        os.makedirs(backup_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = os.path.join(backup_dir, f"franklin_backup_{timestamp}.sql")
+        
+        # Используем sqlite3 .dump
+        with open(backup_path, 'w') as f:
+            subprocess.run(['sqlite3', 'franklin.db', '.dump'], stdout=f, check=True)
+        
+        logger.info(f"Backup created: {backup_path}")
+        return backup_path
+    
+class TaskRepository:
+    """Работа с задачами"""
+    
+    def __init__(self, db_path: str = "franklin.db"):
+        self.engine = create_engine(f'sqlite:///{db_path}')
+        Base.metadata.create_all(self.engine)
+        self.SessionLocal = sessionmaker(bind=self.engine)
+    
+    def find_active_task(self, gene: str, mode: str) -> Optional[Task]:
+        """Найти задачу, которая еще не выполнена (pending, processing)"""
+        session = self.SessionLocal()
+        try:
+            db_task = session.query(TaskDB).filter(
+                TaskDB.gene == gene,
+                TaskDB.mode == mode,
+                TaskDB.status.in_(["pending", "processing"])
+            ).first()
+            
+            if db_task:
+                return Task(
+                    id=db_task.id,
+                    gene=db_task.gene,
+                    mode=db_task.mode,
+                    priority=db_task.priority,
+                    status=db_task.status,
+                    created_at=db_task.created_at
+                )
+            return None
+        finally:
+            session.close()
+    
+    def add_task(self, task: Task) -> int:
+        """Добавить задачу в БД, вернуть ID"""
+        session = self.SessionLocal()
+        try:
+            db_task = TaskDB(
+                gene=task.gene,
+                mode=task.mode,
+                priority=task.priority,
+                status=task.status
+            )
+            session.add(db_task)
+            session.commit()
+            return db_task.id
+        finally:
+            session.close()
+    
+    def update_task_priority(self, task_id: int, new_priority: int):
+        """Обновить приоритет задачи"""
+        session = self.SessionLocal()
+        try:
+            session.query(TaskDB).filter(TaskDB.id == task_id).update(
+                {"priority": new_priority}
+            )
+            session.commit()
+        finally:
+            session.close()
+    
+    def get_pending_tasks(self) -> List[Task]:
+        """Получить все pending задачи с сортировкой по приоритету"""
+        session = self.SessionLocal()
+        try:
+            tasks = session.query(TaskDB).filter(
+                TaskDB.status == "pending"
+            ).order_by(TaskDB.priority, TaskDB.created_at).all()
+            
+            return [
+                Task(
+                    id=t.id,
+                    gene=t.gene,
+                    mode=t.mode,
+                    priority=t.priority,
+                    status=t.status,
+                    created_at=t.created_at
+                )
+                for t in tasks
+            ]
+        finally:
+            session.close()
+    
+    def mark_task_status(self, task_id: int, status: str):
+        """Изменить статус задачи"""
+        session = self.SessionLocal()
+        try:
+            session.query(TaskDB).filter(TaskDB.id == task_id).update(
+                {"status": status}
+            )
+            session.commit()
+        finally:
+            session.close()
+    
+class SchedulerStateRepository:
+    """Cостояние планировщика"""
+    
+    def __init__(self, db_path: str = "franklin.db"):
+        self.engine = create_engine(f'sqlite:///{db_path}')
+        Base.metadata.create_all(self.engine)
+        self.SessionLocal = sessionmaker(bind=self.engine)
+    
+    def get_last_run(self) -> Optional[datetime]:
+        session = self.SessionLocal()
+        try:
+            state = session.query(SchedulerStateDB).first()
+            return state.last_run if state else None
+        finally:
+            session.close()
+    
+    def set_schedule(self, next_run: datetime):
+        session = self.SessionLocal()
+        try:
+            state = session.query(SchedulerStateDB).first()
+            if not state:
+                state = SchedulerStateDB()
+                session.add(state)
+            
+            state.last_run = datetime.now()
+            state.next_run = next_run
+            session.commit()
         finally:
             session.close()
 

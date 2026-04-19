@@ -55,3 +55,21 @@ class Variant:
             abs(self.bayes_score - other.bayes_score) > 0.001 or
             self.rules != other.rules
         )
+    
+
+@dataclass
+class Task:
+    """Задача для очереди
+    gene(str) - ген
+    mode(str) - 'fill', 'update', 'check'
+    priority(int) - 1 = высокий, пользовательский, 2 = низкий, по расписанию
+    status(str) - pending, processing, done, failed
+    created_at(datetime) - время создания
+    id 
+    """
+    gene: str
+    mode: str  # 'fill', 'update', 'check'
+    priority: int = 2  # 1 = высокий, пользовательский, 2 = низкий, по расписанию
+    status: str = "pending"  # pending, processing, done, failed
+    created_at: datetime = field(default_factory=datetime.now)
+    id: int = None 
