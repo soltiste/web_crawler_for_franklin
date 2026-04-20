@@ -12,6 +12,7 @@ import sqlite3
 from api_franklin import FranklinAPIClient
 from infrastructure import VariantRepository, TaskRepository
 from application import GeneCrawlerService, TaskScheduler
+from utils import read_gene_csv
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,26 +23,6 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
-
-DATA_DIR = "data"
-
-
-def read_gene_csv(gene_symbol: str) -> list:
-    """Читает CSV для конкретного гена"""
-    file_path = os.path.join(DATA_DIR, f"{gene_symbol}.csv")
-    
-    if not os.path.exists(file_path):
-        logger.warning(f"CSV not found: {file_path}")
-        return []
-    
-    rows = []
-    with open(file_path, 'r', encoding='utf-8') as f:
-        reader = csv.DictReader(f, delimiter=';')
-        for row in reader:
-            rows.append(row)
-            
-    logger.info(f"Loaded {len(rows)} rows from {file_path}")
-    return rows
 
 
 def main():
@@ -68,10 +49,11 @@ def main():
     p_fill.add_argument('genes', nargs='+', help='Гены: BRCA1 TP53')
     
     p_update = subparsers.add_parser('update', help='Добавить задачу на обновление БД')
-    p_update.add_argument('genes', nargs='+')
-
+    p_update.add_argument('genes', nargs='+')\
+    
+    #to-do ПЕРЕПИСАТЬ НА РАНДОМ-ЧЕК
     p_check = subparsers.add_parser('check', help='Добавить задачу на проверку БД')
-    p_check.add_argument('genes', nargs='+')
+    p_check.add_argument('genes', nargs='+') 
     
     p_run = subparsers.add_parser('run', help='Выполнить все задачи из очереди')
 
@@ -185,7 +167,6 @@ def main():
         print("Запусти 'python main.py run' для выполнения")
         return
     
-    # ----- НЕИЗВЕСТНАЯ КОМАНДА -----
     logger.error(f"Неизвестная команда: {args.command}")
     parser.print_help()
 
