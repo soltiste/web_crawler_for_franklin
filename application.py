@@ -69,7 +69,7 @@ class GeneCrawlerService:
                     db_variant = self.repo.find_by_coords(chr_val, pos_val, ref_val, alt_val)
                     
                     if db_variant and current_variant.has_changes(db_variant):
-                        self.repo.update(current_variant)
+                        self.repo.add_or_update(current_variant)
                         stats["updated"] += 1
                         logger.info(f"Row {i}: Updated classification for {chr_val}-{pos_val}-{ref_val}-{alt_val}")
                     elif not db_variant:
