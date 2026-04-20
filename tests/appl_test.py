@@ -7,9 +7,9 @@ import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from application import GeneCrawlerService, TaskScheduler
-from domain import Task, Variant
-from infrastructure import SchedulerStateDB
+from webcrowler.crowler import GeneCrawlerService, TaskScheduler
+from db.domain import Task, Variant
+from db.repsitories import SchedulerStateDB
 
 
 class TestGeneCrawlerService:

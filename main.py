@@ -2,16 +2,14 @@
 Точка входа
 """
 import argparse
-import csv
 import logging
-import os
 import sys
 from datetime import datetime
 import sqlite3
 
-from api_franklin import FranklinAPIClient
-from infrastructure import VariantRepository, TaskRepository
-from application import GeneCrawlerService, TaskScheduler
+from api.api_franklin import FranklinAPIClient
+from db.repsitories import VariantRepository, TaskRepository
+from webcrowler.crowler import GeneCrawlerService, TaskScheduler
 from utils import read_gene_csv
 
 logging.basicConfig(

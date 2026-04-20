@@ -1,7 +1,9 @@
-"""Domain"""
 from dataclasses import dataclass, field
 from datetime import datetime
 import json
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, func
+from sqlalchemy.orm import declarative_base
+from datetime import datetime
 
 
 @dataclass
@@ -73,3 +75,47 @@ class Task:
     status: str = "pending"  # pending, processing, done, failed
     created_at: datetime = field(default_factory=datetime.now)
     id: int = None 
+
+Base = declarative_base()
+
+class VariantDB(Base):
+    """SQLAlchemy модель"""
+    __tablename__ = 'variants'
+    
+    id = Column(Integer, primary_key=True)
+    chr = Column(String(10), nullable=False)
+    pos = Column(Integer, nullable=False)
+    ref = Column(String(50), nullable=False)
+    alt = Column(String(50), nullable=False)
+    gene = Column(String(30))
+    db_snp = Column(String(30))
+    c_dot = Column(String(80))
+    p_dot = Column(String(80))
+    transcript = Column(String(100))
+    classification = Column(String(200))
+    score = Column(Float)
+    bayes_score = Column(Float)
+    rules = Column(Text)
+    unique_key = Column(String(200), unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+class TaskDB(Base):
+    """Модель задач в БД"""
+    __tablename__ = 'tasks'
+    
+    id = Column(Integer, primary_key=True)
+    gene = Column(String(50), nullable=False)
+    mode = Column(String(20), nullable=False)
+    priority = Column(Integer, default=2)  # 1=high, 2=low
+    status = Column(String(20), default="pending")
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class SchedulerStateDB(Base):
+    """Состояние планировщика"""
+    __tablename__ = 'scheduler_state'
+    
+    id = Column(Integer, primary_key=True)
+    last_run = Column(DateTime)
+    next_run = Column(DateTime)
