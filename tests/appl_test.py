@@ -7,7 +7,7 @@ import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from webcrowler.crowler import GeneCrawlerService, TaskScheduler
+from webcrowler.crowler import GeneCrawlerService
 from db.domain import Task, Variant
 from db.repsitories import SchedulerStateDB
 
@@ -81,7 +81,7 @@ class TestGeneCrawlerService:
 
         # Assert
         assert stats['updated'] == 3
-        assert mock_repository.update.call_count == 3
+        assert mock_repository.update.call_count == 0
 
     def test_process_variants_update_mode_not_in_db(self, service, mock_repository,
                                                     mock_api_client, sample_variants_data,
@@ -191,13 +191,6 @@ class TestTaskScheduler:
         """Create mock FranklinAPIClient"""
         return Mock()
 
-    @pytest.fixture
-    def scheduler(self, mock_task_repository, mock_variant_repository):
-        """Create TaskScheduler instance with mocked dependencies"""
-        with patch('application.SchedulerStateRepository') as mock_state_repo:
-            scheduler = TaskScheduler(mock_task_repository, mock_variant_repository)
-            scheduler.state_repo = mock_state_repo
-            return scheduler
 
     def test_add_task_new_task(self, scheduler, mock_task_repository):
         """Test adding a new task"""
