@@ -9,8 +9,9 @@ import sqlite3
 
 from api.api_franklin import FranklinAPIClient
 from db.repsitories import VariantRepository, TaskRepository
-from webcrowler.crowler import GeneCrawlerService, TaskScheduler
-from utils import read_gene_csv
+from webcrowler.crowler import GeneCrawlerService
+from webcrowler.schedule import TaskScheduler
+from utils import read_gene_csv, process_input_folder
 
 logging.basicConfig(
     level=logging.INFO,
@@ -168,6 +169,63 @@ def main():
     logger.error(f"Неизвестная команда: {args.command}")
     parser.print_help()
 
+def run_daemon(check_input_every: int = 60, check_schedule_every: int = 86400):
+    """
+    Бесконечный цикл работы краулера
+    
+    Args:
+        check_input_every: Проверка input/ каждые N секунд 
+        check_schedule_every: Проверка расписания каждые N секунд 
+    """
+    logger.info(f"Запуск в режиме daemon (input: {check_input_every}с, schedule: {check_schedule_every}с)")
+    
+    repo = VariantRepository(db_path="franklin.db")
+    api = FranklinAPIClient(delay=0.5)
+    task_repo = TaskRepository("franklin.db")
+    scheduler = TaskScheduler(task_repo, repo)
+    
+    last_schedule_check = datetime.now()
+    iteration = 0
+    
+    try:
+        while True:
+            iteration += 1
+            logger.debug(f"Итерация #{iteration}")
+            
+            added = process_input_folder(scheduler=scheduler)
+            if added > 0:
+                logger.info(f"Добавлено задач из input/: {added}")
+            
+            result = scheduler.run_queue(api, max_task_minutes=600)
+            if result is True:
+                logger.info("Задача выполнена")
+            elif result is False:
+                logger.warning("Задача завершилась с ошибкой")
+            
+            now = datetime.now()
+            if (now - last_schedule_check).total_seconds() >= check_schedule_every:
+                logger.info("Проверка расписания")
+                ran = scheduler.check_and_run_scheduled()
+                if ran:
+                    logger.info("Плановые задачи добавлены")
+                last_schedule_check = now
+            
+            time.sleep(check_input_every)
+            
+    except KeyboardInterrupt:
+        logger.info("Cигнал завершения")
+    except Exception as e:
+        logger.error(f"Критическая ошибка в daemon: {e}", exc_info=True)
+        raise
+
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] != 'daemon':
+        main()
+    else:
+        import time
+        run_daemon(
+            check_input_every=60,      
+            check_schedule_every=86400 
+        )
+

@@ -1,4 +1,3 @@
-"""Infrastructure"""
 import logging
 from typing import Optional, List
 from sqlalchemy import create_engine, func
@@ -6,8 +5,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 from datetime import datetime
 import subprocess
 import os
-
-from domain import SchedulerStateDB, Task, TaskDB, Variant, VariantDB
+from db.domain import SchedulerStateDB, Task, TaskDB, Variant, VariantDB
 
 logger = logging.getLogger(__name__)
 Base = declarative_base()

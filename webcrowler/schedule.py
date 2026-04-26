@@ -6,7 +6,7 @@ import os
 import csv
 
 from api.api_franklin import FranklinAPIClient
-from db.domain import Task
+from db.domain import Task, TaskDB
 from db.repsitories import SchedulerStateDB, SchedulerStateRepository, TaskRepository, VariantRepository
 from webcrowler.crowler import GeneCrawlerService
 
@@ -51,40 +51,68 @@ class TaskScheduler:
         task_id = self.task_repo.add_task(task)
         return f"Задача добавлена в очередь (ID: {task_id})"
     
-    def run_queue(self, api_client: FranklinAPIClient):
+    def run_queue(self, api_client: FranklinAPIClient, max_task_minutes: int = 600):
         """
-        Выполнить все pending задачи последовательно.
+        Выполнить одну задачу с очереди
+        
+        Args:
+            max_task_minutes: Если задача висит в processing дольше — сбросить
         """
+        
+        session = self.task_repo.SessionLocal()
+        try:
+            now = datetime.now()
+            timeout_threshold = now - timedelta(minutes=max_task_minutes)
+
+            count_failed = session.query(TaskDB).filter(
+                TaskDB.status == 'processing',
+                TaskDB.created_at < timeout_threshold 
+            ).update({"status": "failed"})
+
+            count_pending = session.query(TaskDB).filter(
+                TaskDB.status == 'processing',
+                TaskDB.created_at >= timeout_threshold 
+            ).update({"status": "pending"})
+
+            session.commit()
+
+            if count_failed > 0:
+                logger.warning(f"Помечено как FAILED: {count_failed} задач")
+            if count_pending > 0:
+                logger.info(f"Восстановлено в PENDING: {count_pending} задач")
+
+        finally:
+            session.close()
+
         pending = self.task_repo.get_pending_tasks()
-        
         if not pending:
-            logger.info("Очередь пуста")
-            return
+            return None 
         
-        logger.info(f"Запуск очереди: {len(pending)} задач")
+        task = pending[0]
+        logger.info(f"Задача: {task.gene} ({task.mode}), приоритет={task.priority}")
+        
+        self.task_repo.mark_task_status(task.id, "processing")
         service = GeneCrawlerService(self.variant_repo, api_client)
         
-        for task in pending:
-            logger.info(f"Выполняется: {task.gene} ({task.mode}) приоритет={task.priority}")
-            
-            self.task_repo.mark_task_status(task.id, "processing")
-            
-            try:
-                csv_path = f"data/{task.gene}.csv"
-                
-                if os.path.exists(csv_path):
-                    with open(csv_path, 'r', encoding='utf-8') as f:
-                        rows = list(csv.DictReader(f, delimiter=';'))
-                    service.process_variants(rows, mode=task.mode)
-                else:
-                    logger.warning(f"CSV координат не найден: {csv_path}")
-                
+        try:
+            csv_path = f"datamap/{task.gene}.csv"
+            if os.path.exists(csv_path):
+                with open(csv_path, 'r', encoding='utf-8') as f:
+                    rows = list(csv.DictReader(f, delimiter=';'))
+                service.process_variants(rows, mode=task.mode)
                 self.task_repo.mark_task_status(task.id, "done")
                 logger.info(f"Задача {task.id} выполнена")
-                
-            except Exception as e:
-                logger.error(f"Ошибка в задаче {task.id}: {e}")
-                self.task_repo.mark_task_status(task.id, "failed")
+            else:
+                logger.warning(f"CSV не найден: {csv_path}")
+                self.task_repo.mark_task_status(task.id, "failed") 
+            
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Ошибка в задаче {task.id}: {e}")
+            self.task_repo.mark_task_status(task.id, "failed")
+            return False
     
     def check_and_run_scheduled(self):
         """
