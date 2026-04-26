@@ -133,6 +133,12 @@ class TaskScheduler:
                 
                 genes = self.variant_repo.get_all_genes()
                 logger.info(f"Гены для обновления: {genes}")
+
+                try:
+                    backup_path = self.variant_repo.create_backup()
+                    logger.info(f"Плановый бэкап: {backup_path}")
+                except Exception as e:
+                    logger.error(f"Ошибка при создании бэкапа: {e}")
                 
                 for gene in genes:
                     self.add_task(gene, "update", is_user_task=False)
