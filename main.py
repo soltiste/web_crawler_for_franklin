@@ -5,6 +5,8 @@ import argparse
 import logging
 import sys
 from datetime import datetime
+
+import time
 import sqlite3
 
 from api.api_franklin import FranklinAPIClient
@@ -223,7 +225,6 @@ if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] != 'daemon':
         main()
     else:
-        import time
         run_daemon(
             check_input_every=60,      
             check_schedule_every=86400 

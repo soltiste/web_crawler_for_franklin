@@ -16,7 +16,6 @@ from utils import read_gene_csv, process_input_folder
 
 @pytest.fixture
 def temp_db():
-    """Create temporary database for testing"""
     with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as tmp:
         db_path = tmp.name
 
@@ -28,25 +27,21 @@ def temp_db():
 
 @pytest.fixture
 def variant_repo(temp_db):
-    """Create VariantRepository with temp DB"""
-    return VariantRepository(db_path=temp_db)
+    return VariantRepository()
 
 
 @pytest.fixture
 def task_repo(temp_db):
-    """Create TaskRepository with temp DB"""
-    return TaskRepository(db_path=temp_db)
+    return TaskRepository()
 
 
 @pytest.fixture
 def scheduler_state_repo(temp_db):
-    """Create SchedulerStateRepository with temp DB"""
-    return SchedulerStateRepository(db_path=temp_db)
+    return SchedulerStateRepository()
 
 
 @pytest.fixture
 def sample_variant():
-    """Sample variant for testing"""
     return Variant(
         chr="1",
         pos=12345,
@@ -66,7 +61,6 @@ def sample_variant():
 
 @pytest.fixture
 def sample_api_response():
-    """Sample API response"""
     return {
         'location': {
             'chr': '1',
@@ -88,14 +82,12 @@ def sample_api_response():
 
 @pytest.fixture
 def mock_api_client():
-    """Mock FranklinAPIClient"""
     client = Mock(spec=FranklinAPIClient)
     return client
 
 
 @pytest.fixture
 def temp_csv_dir(tmp_path):
-    """Create temporary directory for CSV files"""
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     return data_dir
@@ -103,7 +95,6 @@ def temp_csv_dir(tmp_path):
 
 @pytest.fixture
 def sample_csv_data():
-    """Sample CSV data"""
     return [
         {'chrom': '1', 'pos': '12345', 'ref': 'A', 'alt': 'G'},
         {'chrom': '2', 'pos': '67890', 'ref': 'C', 'alt': 'T'},

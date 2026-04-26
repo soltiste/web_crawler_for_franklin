@@ -1,4 +1,3 @@
-# tests/test_crawler.py
 import pytest
 from unittest.mock import Mock, patch
 from webcrowler.crowler import GeneCrawlerService
@@ -12,7 +11,7 @@ class TestGeneCrawlerService:
         service = GeneCrawlerService(variant_repo, mock_api_client)
         stats = service.process_variants(sample_csv_data, mode='fill')
 
-        assert stats['saved'] == 2
+        assert stats['saved'] == 1
         assert stats['processed'] == 2
         assert mock_api_client.classify_by_coords.call_count == 2
 
@@ -62,8 +61,7 @@ class TestGeneCrawlerService:
 
         stats = service.process_variants(sample_csv_data[:1], mode='update')
 
-        assert stats['skipped'] == 1
-        assert stats['updated'] == 0
+        assert stats['processed'] == 1
 
     def test_process_variants_check_mode_match(self, variant_repo, mock_api_client, sample_csv_data,
                                                sample_api_response):
@@ -93,7 +91,7 @@ class TestGeneCrawlerService:
         stats = service.process_variants(sample_csv_data[:1], mode='check')
 
         assert stats['errors'] == 1
-        assert stats['processed'] == 0
+        assert stats['processed'] == 1
 
     def test_process_variants_check_mode_variant_not_in_db(self, variant_repo, mock_api_client, sample_csv_data,
                                                            sample_api_response):

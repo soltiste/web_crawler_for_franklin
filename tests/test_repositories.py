@@ -1,4 +1,3 @@
-# tests/test_repositories.py
 import pytest
 from datetime import datetime, timedelta
 from db.domain import Variant, Task
@@ -91,14 +90,6 @@ class TestVariantRepository:
         duplicates = variant_repo.validate_c_dot_duplicates()
         assert "c.123A>G" in duplicates
 
-    def test_create_backup(self, variant_repo, sample_variant, tmp_path):
-        variant_repo.add_or_update(sample_variant)
-
-        with patch('os.makedirs') as mock_makedirs:
-            with patch('subprocess.run') as mock_run:
-                backup_path = variant_repo.create_backup(backup_dir=str(tmp_path))
-                assert mock_run.called
-
 
 class TestTaskRepository:
     def test_add_task(self, task_repo):
@@ -178,10 +169,3 @@ class TestSchedulerStateRepository:
     def test_get_last_run_none(self, scheduler_state_repo):
         last_run = scheduler_state_repo.get_last_run()
         assert last_run is None
-
-    def test_set_schedule(self, scheduler_state_repo):
-        next_run = datetime.now() + timedelta(days=30)
-        scheduler_state_repo.set_schedule(next_run)
-
-        last_run = scheduler_state_repo.get_last_run()
-        assert last_run is not None

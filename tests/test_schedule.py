@@ -1,4 +1,3 @@
-# tests/test_schedule.py
 import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock
