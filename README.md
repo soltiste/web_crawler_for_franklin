@@ -52,28 +52,6 @@ python main.py check CHEK2
 
 ---
 
-## Планировщик задач
-
-- User task scheduling
-- Priority Queue
-- Conflict resolution
-- Periodic re-crawling (раз в 30 дней)
-- Recovery зависших задач
-- Daemon mode
-
----
-
-## База данных
-Используется SQLite.
-
-Хранится:
-
-- варианты
-- очередь задач
-- состояние шедулера
-
----
-
 # Структура проекта
 
 ```text
@@ -90,11 +68,6 @@ python main.py check CHEK2
 │   └── schedule.py
 │
 ├── datamap/
-│   ├── BRCA1.csv
-│   ├── BRCA2.csv
-│   ├── ATM.csv
-│   ├── CHEK2.csv
-│   └── PALB2.csv
 │
 ├── input/
 ├── processed/
@@ -119,13 +92,9 @@ python main.py check CHEK2
 - datetime
 - subprocess
 
----
-
 ## Testing
 
 - pytest
-
----
 
 ## Database
 
